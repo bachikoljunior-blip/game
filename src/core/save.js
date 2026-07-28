@@ -55,8 +55,9 @@ class Save {
   constructor() {
     this.data = DEFAULTS();
     this.ok = true;
-    this.load();
     this._pending = false;
+    this.load();
+    this._bindLifecycle();
   }
   load() {
     try {
@@ -68,12 +69,26 @@ class Save {
   flush() {
     if (this._pending) return;
     this._pending = true;
-    const write = () => {
-      this._pending = false;
-      try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { this.ok = false; }
-    };
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(write, { timeout: 400 });
-    else setTimeout(write, 120);
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(() => this.flushNow(), { timeout: 400 });
+    else setTimeout(() => this.flushNow(), 120);
+  }
+
+  /** Immediate write. Used when the page may be about to go away. */
+  flushNow() {
+    this._pending = false;
+    try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { this.ok = false; }
+  }
+
+  /**
+   * Mobile browsers discard backgrounded tabs without running unload handlers,
+   * so commit on the last event we are actually guaranteed to see.
+   */
+  _bindLifecycle() {
+    if (typeof document === 'undefined') return;
+    const commit = () => { if (this._pending) this.flushNow(); };
+    document.addEventListener('visibilitychange', () => { if (document.hidden) commit(); });
+    window.addEventListener('pagehide', commit);
+    window.addEventListener('blur', commit);
   }
   reset() {
     this.data = DEFAULTS();

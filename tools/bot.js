@@ -10,16 +10,30 @@ export function makeBot(game, opts = {}) {
   const pickStrategy = opts.pick || 'greedy';
   let ang = 0;
 
+  /** Passives a player chasing damage would prioritise. */
+  const CORE = ['power', 'haste', 'area', 'multishot', 'focus'];
+
   function chooseCard(choices, up) {
     if (pickStrategy === 'first') return choices[0];
-    // greedy: prefer evolutions, then new weapons up to 4, then level-ups
     let best = null, bestScore = -1;
     for (const c of choices) {
       let s = 0;
-      if (c.type === 'evo') s = 100;
-      else if (c.type === 'weapon') s = c.lv === 1 ? (game.weapons.length < 4 ? 40 : 12) : 30 - c.lv;
-      else if (c.type === 'passive') s = c.lv === 1 ? (game.passives.length < 4 ? 26 : 10) : 22 - c.lv;
-      else s = 5;
+      if (pickStrategy === 'focused') {
+        // What a player who knows the game does: a small number of weapons
+        // taken to max, backed by the multiplier passives, chasing evolutions.
+        if (c.type === 'evo') s = 200;
+        else if (c.type === 'weapon') s = c.lv === 1 ? (game.weapons.length < 3 ? 60 : 2) : 50 + c.lv;
+        else if (c.type === 'passive') {
+          const wanted = CORE.includes(c.id);
+          s = c.lv === 1 ? (game.passives.length < 5 && wanted ? 45 : 8) : (wanted ? 40 + c.lv : 15);
+        } else s = 5;
+      } else {
+        // greedy: prefer evolutions, then new weapons up to 4, then level-ups
+        if (c.type === 'evo') s = 100;
+        else if (c.type === 'weapon') s = c.lv === 1 ? (game.weapons.length < 4 ? 40 : 12) : 30 - c.lv;
+        else if (c.type === 'passive') s = c.lv === 1 ? (game.passives.length < 4 ? 26 : 10) : 22 - c.lv;
+        else s = 5;
+      }
       if (s > bestScore) { bestScore = s; best = c; }
     }
     return best;

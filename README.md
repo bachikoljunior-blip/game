@@ -61,13 +61,22 @@ npm run verify       # ユニットテスト + 武器スイープ + 実ブラウ
 |---|---|
 | `node tools/balance.mjs 8` | ボット AI に 8 回フルランさせて難易度曲線を出力 |
 | `node tools/balance.mjs 4 --char nova` | 機体を指定してバランス確認 |
+| `node tools/balance.mjs 8 --pick focused` | 「上手いプレイヤー」の想定でバランス確認 |
 | `node tools/showcase.mjs` | 進化カード・ボス・バースト・勝利画面などの決定的瞬間を撮影 |
 | `node tools/weaponsweep.mjs` | 全武器・全進化を実戦投入して DPS とエラーを検査 |
 | `node tools/perfprobe.mjs` | フレームを工程別に分解して計測 |
 | `node tools/playtest.mjs --long` | ボス戦・勝利画面まで含めた通し確認 |
 
-`tools/bot.js` は「そこそこ上手いプレイヤー」を模したテスト用 AI です。群れから逃げ、
-経験値を拾い、囲まれたらバーストを撃ちます。バランス調整はこのボットの生存時間を指標にしています。
+`tools/bot.js` はテスト用の AI パイロットです。群れから逃げ、経験値を拾い、囲まれたらバーストを撃ちます。
+カードの選び方を 2 通り用意してあり、バランスはこの 2 つの差で確認しています（いずれも恒久強化なしの計測）:
+
+| 選び方 | 平均生存 | 勝率 | 到達レベル |
+|---|---|---|---|
+| `--pick greedy` 武器を広く浅く | 約 290 秒 | 0〜13% | 25 前後 |
+| `--pick focused` 武器3種を最大まで＋倍率パッシブ | 約 500 秒 | 38% | 55〜60 |
+
+つまり「何を取るか」を理解しているほど強くなる設計です。実際のプレイヤーはこれに加えて
+回避の腕と強化ラボの恒久強化が乗ります。
 
 ### 構成
 
@@ -78,7 +87,7 @@ src/
   data/    weapons passives enemies characters meta                 ← 純粋なデータ + 振る舞い
   game/    game waves upgrades entities enemies boss particles      ← ゲームルール
   ui/      screens hud icons                                        ← DOM UI + ベクターアイコン
-tests/     run.mjs                                                  ← 2500+ アサーション
+tests/     run.mjs                                                  ← 2600+ アサーション
 tools/     serve playtest balance showcase perfprobe bot make-icons
 ```
 
