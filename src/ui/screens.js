@@ -186,6 +186,8 @@ export class Screens {
         `<i><span>${t('hasteStat')}</span><b>${c.base.haste >= 0 ? '+' : ''}${Math.round(c.base.haste * 100)}%</b></i>`;
       card.appendChild(st);
       card.appendChild(el('div', 'role', L(c.blurb)));
+      const pb = save.data.bestByChar[c.id] || 0;
+      if (unlocked && pb > 0) card.appendChild(el('div', 'pbest', `${t('best')} ${fmtTime(pb)}`));
       if (!unlocked) {
         card.appendChild(el('div', 'lockmsg', c.feat
           ? (lang === 'ja' ? 'コアを撃破すると解放' : 'Unlocked by beating the Core')

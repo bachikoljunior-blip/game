@@ -11,6 +11,7 @@ const DEFAULTS = () => ({
   unlocked: ['lumina'],     // character ids
   chosen: 'lumina',
   best: { time: 0, kills: 0, level: 0, dmg: 0 },
+  bestByChar: {},          // pilot id -> best survival time
   runs: 0,
   wins: 0,
   seenWeapons: [],
@@ -20,8 +21,25 @@ const DEFAULTS = () => ({
   opts: { lang: null, sfx: 0.8, mus: 0.5, haptics: true, quality: 'auto' },
 });
 
-function deepMerge(base, patch) {
-  if (!patch || typeof patch !== 'object') return base;
+/**
+ * Merge stored data over the defaults, keeping the defaults' shape so a save
+ * from an older build still loads.
+ *
+ * An empty object in the defaults means "free-form map" (meta upgrade levels,
+ * per-pilot records): those keys are not known up front, so they are copied
+ * across wholesale — walking the *defaults* alone would silently drop them.
+ */
+export function deepMerge(base, patch) {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return base;
+  if (Object.keys(base).length === 0) {
+    // Every free-form map in this save holds plain numeric/boolean values;
+    // anything else is corrupt input and is dropped rather than trusted.
+    for (const k in patch) {
+      const v = patch[k];
+      if ((typeof v === 'number' && isFinite(v)) || typeof v === 'boolean') base[k] = v;
+    }
+    return base;
+  }
   for (const k in base) {
     if (!(k in patch)) continue;
     const b = base[k], p = patch[k];

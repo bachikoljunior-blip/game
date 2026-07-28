@@ -136,6 +136,59 @@ for (const lang of ['ja', 'en']) {
   await ctx.close();
 }
 
+/* ------------------------------------------------------------- persistence */
+console.log('▶ persistence');
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => errors.push(`[persist] ${e.message}`));
+  await page.goto(URL_BASE, { waitUntil: 'load' });
+  await page.waitForFunction(() => !!window.__lumina);
+
+  // buy some lab ranks, unlock a pilot, record a per-pilot best
+  await page.evaluate(() => {
+    const { save } = window.__lumina;
+    save.data.shards = 5000;
+    save.setMetaLevel('might', 3);
+    save.setMetaLevel('vigor', 2);
+    save.unlock('nova');
+    save.data.chosen = 'nova';
+    save.data.bestByChar.nova = 321.5;
+    save.data.best.time = 321.5;
+    save.setOpt('lang', 'en');
+    save.flush();
+  });
+  await page.waitForTimeout(700);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForFunction(() => !!window.__lumina);
+  const after = await page.evaluate(() => {
+    const { save } = window.__lumina;
+    return {
+      might: save.metaLevel('might'), vigor: save.metaLevel('vigor'),
+      nova: save.isUnlocked('nova'), chosen: save.data.chosen,
+      best: save.data.best.time, byChar: save.data.bestByChar.nova,
+      lang: save.opts.lang,
+    };
+  });
+  const check = (cond, msg) => { if (!cond) errors.push(`[persist] ${msg}`); console.log(`  ${cond ? '✓' : '✗'} ${msg}`); };
+  check(after.might === 3 && after.vigor === 2, `lab ranks survive a reload (might=${after.might}, vigor=${after.vigor})`);
+  check(after.nova, 'unlocked pilots survive a reload');
+  check(after.chosen === 'nova', 'pilot selection survives a reload');
+  check(after.best === 321.5, 'best time survives a reload');
+  check(after.byChar === 321.5, 'per-pilot record survives a reload');
+  check(after.lang === 'en', 'language choice survives a reload');
+
+  // the stat block must actually apply the restored lab ranks
+  const applied = await page.evaluate(() => {
+    const { game } = window.__lumina;
+    game.start('lumina', false);
+    return { dmgMul: game.st.dmgMul, maxHp: game.st.maxHp };
+  });
+  check(applied.dmgMul > 1.1, `restored lab ranks feed the stat block (dmgMul=${applied.dmgMul.toFixed(2)})`);
+  check(applied.maxHp > 110, `restored HP rank applies (maxHp=${applied.maxHp})`);
+  await ctx.close();
+}
+
 /* ------------------------------------------------------------------- audio */
 console.log('▶ audio synthesis');
 {

@@ -154,6 +154,19 @@ await page.evaluate(() => {
 await page.waitForTimeout(2600);
 await shot('46-victory');
 
+/* -------- 6. defeat --------------------------------------------------- */
+await page.evaluate(() => {
+  const { game } = window.__lumina;
+  game.start('sigma', false);
+  const bot = window.__bot.makeBot(game, {});
+  bot.hookUpgrades(window.__up);
+  for (let i = 0; i < 60 * 200; i++) { if (game.state !== 'playing') break; bot.step(1 / 60); }
+  game.uiBusy = () => false;
+  game.hitPlayer(99999, game.p.x + 30, game.p.y);
+});
+await page.waitForTimeout(2200);
+await shot('47-defeat');
+
 console.log(errors.length ? '\n✗ errors:\n' + [...new Set(errors)].join('\n') : '\n✓ no errors');
 await browser.close();
 server.close();

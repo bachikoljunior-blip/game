@@ -236,6 +236,8 @@ b,strong{font-weight:700}
 .pcard .stats i b{color:var(--ink);font-variant-numeric:tabular-nums}
 .pcard .lockmsg{font-size:10.5px;color:var(--gold);text-align:center;letter-spacing:.04em}
 .pcard .wep{font-size:10.5px;color:var(--cy);text-align:center;letter-spacing:.05em}
+.pcard .pbest{font-size:10.5px;color:var(--gold);text-align:center;letter-spacing:.08em;
+  font-variant-numeric:tabular-nums}
 
 /* ---- shop ---- */
 .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}

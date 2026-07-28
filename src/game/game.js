@@ -95,12 +95,13 @@ export class Game {
     this.recomputeStats();
     save.see('seenWeapons', ch.weapon);
 
-    this.maxEnemies = this.r.mode === 'low' ? 170 : 300;
+    this.maxEnemies = this.r.mode === 'low' ? 170 : this.r.mode === 'mid' ? 240 : 300;
     this.fx.setCap(this.r.q.maxParticles);
     this.updateBounds();
     this.state = 'playing';
     this.bossRef = null;
     this.won = false;
+    this.resultShown = false;
 
     for (let i = 0; i < (this.st.headstart | 0); i++) this.pendingLevels++;
   }

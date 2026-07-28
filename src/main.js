@@ -22,6 +22,12 @@ const input = new Input(document.getElementById('app'));
 const game = new Game(r, input, sound);
 const hud = new Hud();
 
+// A mid-run quality change must move the entity budgets too, or the device
+// that just dropped a tier keeps simulating the same load.
+r.onQuality = (mode) => {
+  game.maxEnemies = mode === 'low' ? 170 : mode === 'mid' ? 240 : 300;
+  game.fx.setCap(r.q.maxParticles);
+};
 r.setQuality(save.opts.quality || 'auto');
 sound.sfxVol = save.opts.sfx;
 sound.musVol = save.opts.mus;
@@ -38,7 +44,6 @@ const api = {
     const firstEver = save.data.runs === 0;
     game.start(charId, save.data.endlessUnlocked && screens.endless);
     sound.startMusic();
-    resultShown = false;
     if (firstEver) hud.showHint(t('hintMove'));
   },
   resume() { screens.close(); },
@@ -53,7 +58,6 @@ const api = {
 };
 
 const screens = new Screens(game, hud, api);
-let resultShown = false;
 
 game.uiBusy = () => screens.isModal();
 game.onLevelUp = () => screens.openLevelUp();
@@ -64,8 +68,8 @@ game.onEnd = (won) => {
   sound.stopMusic(1.2);
   if (won) hud.whiteFlash(0.75);
   setTimeout(() => {
-    if (resultShown) return;
-    resultShown = true;
+    if (game.resultShown) return;
+    game.resultShown = true;
     screens.openResults(bankRun(won, false));
     hud.show(false);
   }, won ? 1500 : 1100);
@@ -90,6 +94,8 @@ function bankRun(won, abandoned) {
   d.best.kills = Math.max(d.best.kills, game.kills);
   d.best.level = Math.max(d.best.level, game.level);
   d.best.dmg = Math.max(d.best.dmg, Math.round(game.dmgDone));
+  const cid = game.char.id;
+  d.bestByChar[cid] = Math.max(d.bestByChar[cid] || 0, game.time);
 
   const unlocks = [];
   if (won) {

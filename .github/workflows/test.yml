@@ -1,0 +1,43 @@
+name: test
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # The game itself has no dependencies, so the unit suite needs no install.
+      - name: Syntax check every module
+        run: for f in $(find src -name '*.js'); do node --check "$f"; done
+      - name: Unit tests
+        run: node tests/run.mjs
+
+  browser:
+    name: browser playtest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - name: Install Chromium
+        run: npx playwright-core install --with-deps chromium || npx playwright install --with-deps chromium
+      - name: Weapon sweep
+        run: node tools/weaponsweep.mjs
+      - name: Playtest (input, audio, offline, screenshots, perf)
+        run: node tools/playtest.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
+          retention-days: 7

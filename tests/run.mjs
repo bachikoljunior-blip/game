@@ -390,6 +390,52 @@ G('card text');
   ok(info.title && info.sub, 'fallback cards still render');
 }
 
+/* ---------------------------------------------------------- save/load */
+G('save round-trip');
+{
+  const { deepMerge } = await import('../src/core/save.js');
+  const defaults = () => ({
+    v: 1, shards: 0, meta: {}, unlocked: ['lumina'], chosen: 'lumina',
+    best: { time: 0, kills: 0, level: 0, dmg: 0 }, bestByChar: {},
+    runs: 0, wins: 0, seenWeapons: [], seenEnemies: [], evolved: [],
+    endlessUnlocked: false,
+    opts: { lang: null, sfx: 0.8, mus: 0.5, haptics: true, quality: 'auto' },
+  });
+  // A full profile must survive a save/load cycle intact. Free-form maps
+  // (lab ranks, per-pilot records) are the easy thing to lose here.
+  const stored = {
+    v: 1, shards: 1234, meta: { might: 3, vigor: 2, revive: 1 },
+    unlocked: ['lumina', 'nova', 'vex'], chosen: 'nova',
+    best: { time: 610.5, kills: 4212, level: 57, dmg: 900000 },
+    bestByChar: { lumina: 300.2, nova: 610.5 },
+    runs: 42, wins: 3, seenWeapons: ['bolt', 'arc'], seenEnemies: ['drift'],
+    evolved: ['bolt_x'], endlessUnlocked: true,
+    opts: { lang: 'en', sfx: 0.3, mus: 0, haptics: false, quality: 'low' },
+  };
+  const loaded = deepMerge(defaults(), JSON.parse(JSON.stringify(stored)));
+  eq(JSON.stringify(loaded), JSON.stringify(stored), 'a full profile round-trips unchanged');
+  eq(loaded.meta.might, 3, 'lab ranks survive a reload');
+  eq(loaded.meta.revive, 1, 'every lab entry survives, not just known keys');
+  eq(loaded.bestByChar.nova, 610.5, 'per-pilot records survive a reload');
+  eq(loaded.opts.lang, 'en', 'null-defaulted options accept a stored value');
+  eq(loaded.opts.mus, 0, 'a zero volume is not treated as missing');
+  eq(loaded.opts.haptics, false, 'a false flag is not treated as missing');
+
+  // an older/partial save keeps the new defaults
+  const partial = deepMerge(defaults(), { shards: 5, opts: { sfx: 0.1 } });
+  eq(partial.shards, 5, 'partial saves apply what they have');
+  eq(partial.opts.mus, 0.5, 'missing fields keep their default');
+  eq(partial.unlocked.length, 1, 'missing arrays keep their default');
+
+  // hostile / corrupt input must not poison the shape
+  const junk = deepMerge(defaults(), { shards: 'lots', meta: { might: 'x', ok: 2 }, best: null, unlocked: 'nope' });
+  eq(junk.shards, 0, 'wrong-typed scalars are rejected');
+  eq(junk.meta.might, undefined, 'wrong-typed map values are rejected');
+  eq(junk.meta.ok, 2, 'valid map values are still accepted');
+  eq(junk.best.time, 0, 'a null object falls back to defaults');
+  ok(Array.isArray(junk.unlocked), 'a non-array cannot replace an array');
+}
+
 /* ------------------------------------------------------------- packaging */
 G('packaging');
 {
