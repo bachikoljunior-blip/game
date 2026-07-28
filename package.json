@@ -8,6 +8,9 @@
     "start": "node tools/serve.mjs",
     "test": "node tests/run.mjs",
     "playtest": "node tools/playtest.mjs",
+    "weapons": "node tools/weaponsweep.mjs",
+    "balance": "node tools/balance.mjs 8",
+    "verify": "node tests/run.mjs && node tools/weaponsweep.mjs && node tools/playtest.mjs",
     "icons": "node tools/make-icons.mjs",
     "check": "node --check src/main.js"
   },

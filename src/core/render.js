@@ -39,6 +39,8 @@ export class Renderer {
     this.cam = { x: 0, y: 0, tx: 0, ty: 0 };
     this.shakeMag = 0; this.shakeX = 0; this.shakeY = 0; this.shakeSeed = 0;
     this.tint = 0;              // 0..1 threat colouring of the backdrop
+    this.pal = [5, 7, 16]; this.palTo = [5, 7, 16];
+    this.grid = [90, 150, 230]; this.gridTo = [90, 150, 230];
     this.time = 0;
     this._frames = 0; this._acc = 0; this._slow = 0; this._fast = 0;
     this.fps = 60;
@@ -108,8 +110,18 @@ export class Renderer {
   }
   shake(mag) { this.shakeMag = Math.min(28, this.shakeMag + mag * this.shakeScale); }
 
+  /** Target backdrop + lattice colours; `snap` jumps instead of easing. */
+  setPalette(bg, grid, snap) {
+    this.palTo = bg; this.gridTo = grid;
+    if (snap) { this.pal = bg.slice(); this.grid = grid.slice(); }
+  }
+
   update(dt) {
     this.time += dt;
+    for (let i = 0; i < 3; i++) {
+      this.pal[i] = damp(this.pal[i], this.palTo[i], 0.6, dt);
+      this.grid[i] = damp(this.grid[i], this.gridTo[i], 0.6, dt);
+    }
     this.cam.x = damp(this.cam.x, this.cam.tx, 7.5, dt);
     this.cam.y = damp(this.cam.y, this.cam.ty, 7.5, dt);
     if (this.shakeMag > 0.05) {
@@ -151,13 +163,15 @@ export class Renderer {
     ctx.globalAlpha = 1;
     const g = this._bg || (this._bg = null);
     // gradient cached per size+tint bucket
-    const key = `${this.w}x${this.h}x${(this.tint * 8) | 0}`;
+    const P = this.pal;
+    const key = `${this.w}x${this.h}x${(this.tint * 8) | 0}x${P[0] | 0}x${P[1] | 0}x${P[2] | 0}`;
     if (this._bgKey !== key) {
       const grad = ctx.createLinearGradient(0, 0, this.w * 0.35, this.h);
       const t = this.tint;
-      grad.addColorStop(0, `rgb(${5 + t * 11},${7 + t * 4},${16 + t * 16})`);
-      grad.addColorStop(0.55, `rgb(${4 + t * 9},${6 + t * 3},${13 + t * 13})`);
-      grad.addColorStop(1, `rgb(${2 + t * 7},${3 + t * 2},${9 + t * 9})`);
+      const c = (i, lo, hi) => Math.round(P[i] * lo + t * hi);
+      grad.addColorStop(0, `rgb(${c(0, 1.15, 9)},${c(1, 1.15, 4)},${c(2, 1.15, 13)})`);
+      grad.addColorStop(0.55, `rgb(${c(0, 0.85, 7)},${c(1, 0.85, 3)},${c(2, 0.85, 10)})`);
+      grad.addColorStop(1, `rgb(${c(0, 0.45, 5)},${c(1, 0.45, 2)},${c(2, 0.5, 7)})`);
       this._bgGrad = grad; this._bgKey = key;
     }
     ctx.fillStyle = this._bgGrad;
@@ -177,7 +191,8 @@ export class Renderer {
       const step = 128;
       const ox = -((cx * 0.5) % step), oy = -((cy * 0.5) % step);
       ctx.lineWidth = 1 / this.scale;
-      ctx.strokeStyle = `rgba(90,150,230,${0.045 + this.tint * 0.03})`;
+      const G = this.grid;
+      ctx.strokeStyle = `rgba(${G[0] | 0},${G[1] | 0},${G[2] | 0},${0.05 + this.tint * 0.035})`;
       ctx.beginPath();
       for (let x = cx - hw + ox - step; x < cx + hw + step; x += step) {
         ctx.moveTo(x, cy - hh); ctx.lineTo(x, cy + hh);
@@ -195,7 +210,9 @@ export class Renderer {
       const x0 = Math.floor((px - hw) / cell), x1 = Math.ceil((px + hw) / cell);
       const y0 = Math.floor((py - hh) / cell), y1 = Math.ceil((py + hh) / cell);
       const size = (0.9 + L * 0.75) / 1;
-      ctx.fillStyle = L === 2 ? `rgba(190,225,255,0.5)` : L === 1 ? `rgba(150,200,255,0.32)` : `rgba(120,170,230,0.2)`;
+      const G = this.grid;
+      const gr = (a) => `rgba(${Math.min(255, (G[0] | 0) + 60)},${Math.min(255, (G[1] | 0) + 50)},${Math.min(255, (G[2] | 0) + 30)},${a})`;
+      ctx.fillStyle = L === 2 ? gr(0.5) : L === 1 ? gr(0.32) : gr(0.2);
       ctx.beginPath();
       for (let gy = y0; gy <= y1; gy++) {
         for (let gx = x0; gx <= x1; gx++) {

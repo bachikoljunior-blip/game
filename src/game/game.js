@@ -41,7 +41,7 @@ export class Game {
     this.boss = { ai: BOSS_DEF.ai };
     this.p = {
       x: 0, y: 0, vx: 0, vy: 0, r: 12, hp: 100, maxHp: 100, inv: 0, face: -Math.PI / 2,
-      hitFlash: 0, trail: 0, spin: 0,
+      hitFlash: 0, trail: 0, spin: 0, hurtT: 0, hurtDir: 0,
     };
     this.aim = { x: 1, y: 0 };
     this.st = {};
@@ -82,6 +82,7 @@ export class Game {
     p.x = 0; p.y = 0; p.vx = p.vy = 0; p.inv = 1.2; p.hitFlash = 0;
     this.r.snapCam(0, 0);
     this.r.tint = 0;
+    this.r.setPalette([5, 7, 16], [90, 150, 230], true);
 
     this.recomputeStats();
     p.hp = p.maxHp = this.st.maxHp;
@@ -193,6 +194,7 @@ export class Game {
     p.spin += dt * (1.2 + mag * 2.4);
     if (p.inv > 0) p.inv -= dt;
     if (p.hitFlash > 0) p.hitFlash -= dt;
+    if (p.hurtT > 0) p.hurtT -= dt;
     if (st.regen > 0 && p.hp < p.maxHp) {
       p.hp = Math.min(p.maxHp, p.hp + st.regen * dt);
     }
@@ -416,7 +418,7 @@ export class Game {
   aoeSelfHarm(x, y, r, dmg) {
     const p = this.p;
     const rr = r + p.r;
-    if (dist2(x, y, p.x, p.y) < rr * rr) this.hitPlayer(dmg);
+    if (dist2(x, y, p.x, p.y) < rr * rr) this.hitPlayer(dmg, x, y);
   }
 
   /* ------------------------------------------------------------------ death */
@@ -489,6 +491,8 @@ export class Game {
       this.level++;
       this.xpNeed = XP_NEED(this.level);
       this.pendingLevels++;
+      this.fx.ring(this.p.x, this.p.y, 110, '#9dffea', 0.5, 4);
+      this.fx.spark(this.p.x, this.p.y, 14, '#c8fff0', 190);
     }
   }
 
@@ -535,9 +539,10 @@ export class Game {
     }
   }
 
-  hitPlayer(dmg) {
+  hitPlayer(dmg, srcX, srcY) {
     const p = this.p;
     if (p.inv > 0 || this.state !== 'playing') return;
+    if (srcX !== undefined) { p.hurtDir = Math.atan2(srcY - p.y, srcX - p.x); p.hurtT = 0.75; }
     const d = Math.max(1, dmg - this.st.armor);
     p.hp -= d;
     p.inv = 0.72;
@@ -746,6 +751,19 @@ export class Game {
     if (!glow) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.arc(p.x, p.y, 3.8, 0, TAU); ctx.fill();
+    }
+
+    if (p.hurtT > 0 && !glow) {          // where did that come from?
+      const k = p.hurtT / 0.75;
+      ctx.globalAlpha = k * 0.85;
+      ctx.strokeStyle = '#ff5c8a';
+      ctx.lineWidth = 4 + k * 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 34 - k * 4, p.hurtDir - 0.55, p.hurtDir + 0.55);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.globalAlpha = 1;
     }
 
     if (this.p.hp / this.p.maxHp < 0.34) {

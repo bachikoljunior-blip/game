@@ -4,9 +4,22 @@
  * elites, and finally the boss at RUN_LEN.
  */
 import { TAU, clamp } from '../core/util.js';
-import { t as T } from '../core/i18n.js';
+import { t as T, L } from '../core/i18n.js';
 
 export const RUN_LEN = 600;            // seconds until the Core awakens
+
+/**
+ * Sectors give the ten minutes a shape you can see: the backdrop, the lattice
+ * and the star colour drift as you go deeper, and the name is announced.
+ * `bg` is the base colour of the backdrop gradient, `grid` tints the lattice.
+ */
+export const SECTORS = [
+  { t: 0, name: { ja: '外縁部', en: 'THE RIM' }, bg: [5, 7, 16], grid: [90, 150, 230] },
+  { t: 120, name: { ja: '鉄屑帯', en: 'SCRAP BELT' }, bg: [16, 10, 14], grid: [210, 150, 120] },
+  { t: 240, name: { ja: '深層領域', en: 'DEEP FIELD' }, bg: [4, 13, 22], grid: [90, 220, 210] },
+  { t: 360, name: { ja: '灼熱域', en: 'EMBER ZONE' }, bg: [22, 8, 8], grid: [255, 140, 90] },
+  { t: 480, name: { ja: '深淵', en: 'THE ABYSS' }, bg: [10, 5, 20], grid: [180, 120, 255] },
+];
 
 const TABLE = [
   { t: 0, w: { drift: 10 } },
@@ -54,6 +67,7 @@ export class Director {
     this.warned = false;
     this.loop = 0;
     this.bossAt = RUN_LEN;
+    this.sector = -1;
   }
 
   /** Live difficulty multipliers. */
@@ -76,6 +90,20 @@ export class Director {
     const g = this.g;
     const time = g.time;
     g.diff = this.difficulty(time);
+
+    // ---- sector transitions
+    let si = 0;
+    for (let i = 0; i < SECTORS.length; i++) if (time >= SECTORS[i].t) si = i;
+    if (si !== this.sector) {
+      const first = this.sector < 0;
+      this.sector = si;
+      const sec = SECTORS[si];
+      g.r.setPalette(sec.bg, sec.grid, first);
+      if (!first) {
+        g.alert(L(sec.name), 'sector');
+        g.snd.ui(1);
+      }
+    }
 
     // ---- scripted beats
     while (this.ev < EVENTS.length && time >= EVENTS[this.ev][0]) {

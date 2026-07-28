@@ -171,7 +171,7 @@ export function updateEBullets(g, dt) {
     if (b.life <= 0) { b.alive = false; continue; }
     const rr = b.r + p.r * 0.8;
     if (dist2(b.x, b.y, p.x, p.y) < rr * rr) {
-      g.hitPlayer(b.dmg);
+      g.hitPlayer(b.dmg, b.x, b.y);
       g.fx.spark(b.x, b.y, 6, b.color, 150);
       b.alive = false; continue;
     }

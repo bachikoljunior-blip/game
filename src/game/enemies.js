@@ -92,7 +92,7 @@ export function updateEnemies(g, dt) {
     if (dist2(e.x, e.y, p.x, p.y) < rr * rr) {
       if (e.touch <= 0) {
         e.touch = 0.55;
-        g.hitPlayer(e.dmg);
+        g.hitPlayer(e.dmg, e.x, e.y);
         const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
         e.kx -= (dx / d) * 90; e.ky -= (dy / d) * 90;
       }

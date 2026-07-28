@@ -422,10 +422,26 @@ export class Screens {
     const luckExtra = g.rng.f() < clamp(g.st.luck * 0.6, 0, 0.45) ? 1 : 0;
     this.choices = buildChoices(g, 3 + luckExtra);
     $('luTitle').textContent = `Lv.${g.level}`;
+    this.renderBuildStrip($('luBuild'));
     this.renderChoices();
     this.show('levelup');
     sound.levelUp();
     if (navigator.vibrate && save.opts.haptics) navigator.vibrate(18);
+  }
+
+  /** Compact icon row of what you already have — the modal hides the HUD. */
+  renderBuildStrip(host) {
+    const g = this.g;
+    host.innerHTML = '';
+    const add = (def, lv, max, evo) => {
+      const d = el('div', 'lo' + (lv >= max ? ' max' : '') + (evo ? ' evo' : ''));
+      d.appendChild(iconCanvas(def.icon, 17));
+      d.appendChild(el('em', null, evo ? '★' : String(lv)));
+      d.title = L(def.name);
+      host.appendChild(d);
+    };
+    for (const w of g.weapons) add(w.def, w.lv, w.def.max, !!w.def.evoOf);
+    for (const p of g.passives) add(p.def, p.lv, p.def.max, false);
   }
 
   renderChoices() {

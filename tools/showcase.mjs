@@ -106,6 +106,24 @@ await page.evaluate(() => {
 });
 await shot('43-burst');
 
+/* -------- 3b. sectors -------------------------------------------------- */
+{
+  const marks = [[10, '50-sector1'], [130, '51-sector2'], [250, '52-sector3'], [370, '53-sector4'], [490, '54-sector5']];
+  await page.evaluate(() => { window.__lumina.game.start('lumina', false); });
+  for (const [t, name] of marks) {
+    await page.evaluate((target) => {
+      const { game } = window.__lumina;
+      const bot = window.__bot.makeBot(game, {});
+      bot.hookUpgrades(window.__up);
+      // jump the clock, then let the world settle into the new sector
+      game.time = Math.max(game.time, target - 2);
+      for (let i = 0; i < 60 * 6; i++) { game.p.hp = game.p.maxHp; bot.step(1 / 60); }
+      game.draw();
+    }, t);
+    await shot(name);
+  }
+}
+
 /* -------- 4. boss close-up -------------------------------------------- */
 await page.evaluate(() => {
   const { game } = window.__lumina;
