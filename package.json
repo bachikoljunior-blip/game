@@ -1,0 +1,17 @@
+{
+  "name": "lumina",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LUMINA — a one-thumb neon survival action game for mobile browsers.",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node tests/run.mjs",
+    "playtest": "node tools/playtest.mjs",
+    "icons": "node tools/make-icons.mjs",
+    "check": "node --check src/main.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}
