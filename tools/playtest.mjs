@@ -136,6 +136,88 @@ for (const lang of ['ja', 'en']) {
   await ctx.close();
 }
 
+/* ------------------------------------------------------------------- audio */
+console.log('▶ audio synthesis');
+{
+  const { ctx, page } = await newPage(DEVICES.phone);
+  const res = await page.evaluate(async () => {
+    const { sound } = window.__lumina;
+    const out = { failures: [], nodes: 0, steps: 0, state: '' };
+    sound.init();
+    if (!sound.ready) { out.failures.push('AudioContext unavailable'); return out; }
+    out.state = sound.ctx.state;
+    // every sfx entry point must survive being called
+    const calls = [
+      ['shoot', [1, false]], ['shoot', [1.4, true]], ['laser', [1]], ['hit', [false]], ['hit', [true]],
+      ['crit', []], ['kill', []], ['boom', [1]], ['boom', [2]], ['pickup', [3]], ['coin', []],
+      ['hurt', []], ['heal', []], ['levelUp', []], ['chest', []], ['burst', []],
+      ['ui', [0]], ['ui', [1]], ['ui', [2]], ['bossWarn', []], ['win', []], ['lose', []],
+      ['duck', [0.3, 0.5]], ['muffle', [true]], ['muffle', [false]], ['setVolumes', [0.5, 0.4]],
+    ];
+    for (const [fn, args] of calls) {
+      try { sound[fn](...args); } catch (e) { out.failures.push(`${fn}: ${e.message}`); }
+    }
+    // the generative score must actually schedule notes
+    try {
+      sound.startMusic();
+      const s0 = sound.step;
+      for (let i = 0; i < 40; i++) {
+        sound.update(i / 40);
+        await new Promise((r) => setTimeout(r, 12));
+      }
+      out.steps = sound.step - s0;
+      sound.stopMusic(0.1);
+    } catch (e) { out.failures.push(`music: ${e.message}`); }
+    return out;
+  });
+  const check = (cond, msg) => { if (!cond) errors.push(`[audio] ${msg}`); console.log(`  ${cond ? '✓' : '✗'} ${msg}`); };
+  check(res.failures.length === 0, `every sound effect synthesises${res.failures.length ? ': ' + res.failures[0] : ''}`);
+  check(res.steps > 0, `generative music schedules notes (${res.steps} sixteenths)`);
+  await ctx.close();
+}
+
+/* ------------------------------------------------------------- offline PWA */
+console.log('▶ offline (service worker)');
+{
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', (e) => errs.push(e.message));
+  await page.goto(URL_BASE, { waitUntil: 'load' });
+  const registered = await page.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready.catch(() => null);
+    return !!(reg && reg.active);
+  });
+  const check = (cond, msg) => { if (!cond) errors.push(`[offline] ${msg}`); console.log(`  ${cond ? '✓' : '✗'} ${msg}`); };
+  check(registered, 'service worker activates');
+
+  // give the install handler a moment to finish filling the cache
+  await page.waitForTimeout(1200);
+  const cached = await page.evaluate(async () => {
+    const keys = await caches.keys();
+    if (!keys.length) return 0;
+    const c = await caches.open(keys[0]);
+    return (await c.keys()).length;
+  });
+  check(cached > 30, `precache is populated (${cached} entries)`);
+
+  await ctx.setOffline(true);
+  await page.reload({ waitUntil: 'load' });
+  const bootedOffline = await page.waitForFunction(() => !!window.__lumina, null, { timeout: 15000 })
+    .then(() => true).catch(() => false);
+  check(bootedOffline, 'game boots with the network switched off');
+  if (bootedOffline) {
+    await page.click('#btnPlay');
+    await page.waitForTimeout(400);
+    check(await page.evaluate(() => window.__lumina.game.state === 'playing'), 'a run starts while offline');
+  }
+  check(errs.length === 0, `no page errors offline${errs.length ? ': ' + errs[0] : ''}`);
+  await ctx.setOffline(false);
+  await ctx.close();
+}
+
 /* ------------------------------------------------------ real touch input */
 console.log('▶ touch controls');
 {

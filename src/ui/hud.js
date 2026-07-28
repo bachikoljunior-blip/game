@@ -14,7 +14,7 @@ export class Hud {
     this.hpFill = $('hpFill'); this.hpText = $('hpText');
     this.xpFill = $('xpFill'); this.xpText = $('xpText');
     this.clock = $('clock'); this.kills = $('kills'); this.shards = $('shards');
-    this.loadout = $('loadout'); this.alerts = $('alerts');
+    this.loadout = $('loadout'); this.alerts = $('alerts'); this.hintEl = $('hint');
     this.burst = $('btnBurst'); this.burstCd = $('burstCd');
     this.burstRing = this.burst.querySelector('.burst-ring circle');
     this.vig = $('vignette');
@@ -33,11 +33,13 @@ export class Hud {
   show(on) {
     this.el.classList.toggle('hidden', !on);
     this.el.setAttribute('aria-hidden', on ? 'false' : 'true');
-    if (!on) { this.alerts.innerHTML = ''; this.bossWrap.classList.add('hidden'); }
+    if (!on) { this.alerts.innerHTML = ''; this.bossWrap.classList.add('hidden'); this.hideHint(); }
   }
 
   update(g) {
     const c = this.cache;
+    // the first-run hint retires as soon as the player has clearly got it
+    if (this.hint && (g.time > 9 || Math.hypot(g.p.x, g.p.y) > 150)) this.hideHint();
     const hpK = clamp(g.p.hp / g.p.maxHp, 0, 1);
     if (Math.abs((c.hpK || 0) - hpK) > 0.001) {
       c.hpK = hpK;
@@ -108,6 +110,18 @@ export class Hud {
     for (const p of g.passives) add(p.def, p.lv, p.lv >= p.def.max, false);
     this.loadout.innerHTML = '';
     this.loadout.appendChild(frag);
+  }
+
+  showHint(html) {
+    this.hint = true;
+    this.hintEl.innerHTML = html;
+    this.hintEl.classList.remove('hidden', 'out');
+  }
+  hideHint() {
+    if (!this.hint) return;
+    this.hint = false;
+    this.hintEl.classList.add('out');
+    setTimeout(() => this.hintEl.classList.add('hidden'), 400);
   }
 
   alert(text, cls) {

@@ -50,6 +50,8 @@ export class Game {
     this.hitstop = 0;
     this.time = 0;
     this.onLevelUp = null; this.onChest = null; this.onEnd = null; this.onAlert = null;
+    /** Set by the UI: true while a modal owns the screen, so prompts queue up. */
+    this.uiBusy = () => false;
     this.frame = 0;
     this._chainSeen = new Set();
   }
@@ -70,6 +72,7 @@ export class Game {
     this.level = 1; this.xp = 0; this.xpNeed = XP_NEED(1);
     this.kills = 0; this.dmgDone = 0; this.runShards = 0;
     this.pendingLevels = 0;
+    this.pendingChests = 0;
     this.banned = new Set();
     this.evolved = [];
     this.weapons = []; this.passives = [];
@@ -234,9 +237,16 @@ export class Game {
     this.r.tint = damp(this.r.tint, threat, 1.5, dt);
     this.intensity = clamp(threat * (this.bossRef ? 1.2 : 1), 0, 1);
 
-    if (this.pendingLevels > 0 && this.onLevelUp) {
-      this.pendingLevels--;
-      this.onLevelUp();
+    // One prompt at a time: a chest opening in the same frame as a level-up
+    // must not stomp the other's modal.
+    if (!this.uiBusy()) {
+      if (this.pendingChests > 0 && this.onChest) {
+        this.pendingChests--;
+        this.onChest();
+      } else if (this.pendingLevels > 0 && this.onLevelUp) {
+        this.pendingLevels--;
+        this.onLevelUp();
+      }
     }
   }
 
@@ -272,7 +282,7 @@ export class Game {
     b.life = b.max = o.life; b.kind = o.kind; b.color = o.color; b.beh = o.beh || 'straight';
     b.pierce = o.pierce | 0; b.wid = o.wid; b.knock = o.knock || 0; b.turn = o.turn || 0;
     b.rot = o.rot || 0; b.len = o.len || 0; b.spin = o.spin || 0; b.range = o.range || 0;
-    b.burst = o.burst || 0; b.hitCd = o.hitCd || 0;
+    b.burst = o.burst || 0; b.burstMul = o.burstMul || 0.5; b.hitCd = o.hitCd || 0;
     b.dist = 0; b.back = false; b.ret = 0; b.tgt = null;
     b.hits.clear();
     return b;
@@ -379,16 +389,16 @@ export class Game {
     });
   }
 
-  chain(first, chains, range, dmg, wid, color, stun) {
+  chain(first, chains, range, dmg, wid, color, stun, falloff) {
     const seen = this._chainSeen;
     seen.clear();
-    const pts = [this.p.x, this.p.y];
+    const nodes = [this.p.x, this.p.y];
     let cur = first;
     for (let i = 0; i <= chains && cur; i++) {
       seen.add(cur.uid);
-      pts.push(cur.x, cur.y);
-      const falloff = Math.pow(0.92, i);
-      this.hurt(cur, dmg * falloff, { knock: 20, kx: 0, ky: 0, wid, stun });
+      nodes.push(cur.x, cur.y);
+      const drop = Math.pow(falloff === undefined ? 0.96 : falloff, i);
+      this.hurt(cur, dmg * drop, { knock: 20, kx: 0, ky: 0, wid, stun });
       this.fx.spark(cur.x, cur.y, 4, color, 150);
       let next = null, bd = range * range;
       this.egrid.query(cur.x, cur.y, range, (e) => {
@@ -398,7 +408,9 @@ export class Game {
       });
       cur = next;
     }
-    if (pts.length >= 4) this.beam({ pts: pts.slice(), life: 0.22, color: '#ffffff', glow: color, width: 7 });
+    if (nodes.length >= 4) {
+      this.beam({ pts: jagged(nodes, this.rng), life: 0.22, color: '#ffffff', glow: color, width: 7 });
+    }
   }
 
   aoeSelfHarm(x, y, r, dmg) {
@@ -445,7 +457,13 @@ export class Game {
 
     if (e.boss) {
       this.bossRef = null;
-      if (this.endless) { this.director.bossSpawned = false; this.director.warned = false; this.time = Math.max(this.time, RUN_LEN); }
+      if (this.endless) {                       // endless: the Core reforms, harder
+        this.director.bossSpawned = false;
+        this.director.warned = false;
+        this.director.bossAt = this.time + 100;
+        this.director.loop++;
+        this.alert(this.endless ? 'CORE REFORMING' : '', 'bad');
+      }
       else this.finish(true);
     }
   }
@@ -498,7 +516,7 @@ export class Game {
       }
       case 'chest':
         this.snd.chest();
-        if (this.onChest) this.onChest();
+        this.pendingChests++;
         break;
       case 'shard':
         this.runShards += 4 + Math.floor(this.rng.f() * 4);
@@ -602,6 +620,56 @@ export class Game {
     r.bloom();
     r.world();
     this.fx.drawText(r.ctx, r);
+    this.drawOffscreenMarkers(r);
+  }
+
+  /**
+   * Edge markers for threats you cannot see. Without these, a boss circling
+   * just outside the view shoots at you from nowhere.
+   */
+  drawOffscreenMarkers(r) {
+    const L = this.enemies.live;
+    const ctx = r.ctx;
+    const w = r.w, h = r.h, pad = 26;
+    const cx = w * 0.5, cy = h * 0.5;
+    r.screen();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < L.length; i++) {
+      const e = L[i];
+      if (!e.boss && !e.elite) continue;
+      const sx = (e.x - r.cam.x) * r.scale + cx;
+      const sy = (e.y - r.cam.y) * r.scale + cy;
+      if (sx > pad && sx < w - pad && sy > pad && sy < h - pad) continue;
+      const dx = sx - cx, dy = sy - cy;
+      const len = Math.hypot(dx, dy) || 1;
+      // clamp to the inset rectangle along the direction of the threat
+      const k = Math.min((cx - pad) / Math.max(1e-3, Math.abs(dx)), (cy - pad) / Math.max(1e-3, Math.abs(dy)));
+      const mx = cx + dx * k, my = cy + dy * k;
+      const a = Math.atan2(dy, dx);
+      const col = e.boss ? '#ff8ad8' : '#ffcf5c';
+      const size = e.boss ? 13 : 9;
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(a);
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(size, 0);
+      ctx.lineTo(-size * 0.7, size * 0.62);
+      ctx.lineTo(-size * 0.35, 0);
+      ctx.lineTo(-size * 0.7, -size * 0.62);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.arc(mx, my, size * 1.7, 0, TAU);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   /** The world, drawn once. Called twice per frame: glow pass, then main pass. */
@@ -637,7 +705,10 @@ export class Game {
       ctx.globalAlpha = 1;
     }
 
-    r.glow(p.x, p.y, 28, flash ? '#ffffff' : '#63f4ff', glow ? 0.55 : 0.3);
+    // The glow pass gets a deliberately restrained version of the ship:
+    // a bright hull in both passes turns the player into a featureless white
+    // ball once the bloom lands on it.
+    r.glow(p.x, p.y, glow ? 20 : 26, flash ? '#ffffff' : '#63f4ff', glow ? 0.42 : 0.28);
 
     // rotating guard arcs
     ctx.strokeStyle = inv ? '#ffffff' : '#63f4ff';
@@ -658,16 +729,24 @@ export class Game {
     ctx.beginPath();
     ctx.moveTo(14.5, 0); ctx.lineTo(-8, 10); ctx.lineTo(-4, 0); ctx.lineTo(-8, -10);
     ctx.closePath();
-    ctx.fillStyle = flash ? '#ffffff' : '#dff4ff';
-    ctx.fill();
-    ctx.strokeStyle = flash ? '#ff5c8a' : '#2ea8c8';
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
+    if (glow) {
+      ctx.strokeStyle = flash ? '#ffffff' : '#6fe6ff';
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = flash ? '#ffffff' : '#dff4ff';
+      ctx.fill();
+      ctx.strokeStyle = flash ? '#ff5c8a' : '#2ea8c8';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
     ctx.restore();
 
     // core dot
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(p.x, p.y, 3.8, 0, TAU); ctx.fill();
+    if (!glow) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3.8, 0, TAU); ctx.fill();
+    }
 
     if (this.p.hp / this.p.maxHp < 0.34) {
       const k = 0.5 + Math.sin(this.time * 8) * 0.5;
@@ -677,3 +756,25 @@ export class Game {
 }
 
 const aliveFilter = (e) => e.alive && !e.dying;
+
+/**
+ * Turns a polyline into a lightning bolt: each span is subdivided and the
+ * midpoints are pushed sideways, so an arc looks electric instead of ruled.
+ */
+function jagged(nodes, rng) {
+  const out = [nodes[0], nodes[1]];
+  for (let i = 2; i < nodes.length; i += 2) {
+    const x0 = nodes[i - 2], y0 = nodes[i - 1], x1 = nodes[i], y1 = nodes[i + 1];
+    const dx = x1 - x0, dy = y1 - y0;
+    const len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len, py = dx / len;
+    const steps = len > 60 ? 3 : 2;
+    for (let s = 1; s < steps; s++) {
+      const t = s / steps;
+      const off = (rng.f() - 0.5) * Math.min(26, len * 0.3);
+      out.push(x0 + dx * t + px * off, y0 + dy * t + py * off);
+    }
+    out.push(x1, y1);
+  }
+  return out;
+}

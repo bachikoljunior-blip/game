@@ -10,7 +10,7 @@ export const mkBullet = () => ({
   alive: false, x: 0, y: 0, vx: 0, vy: 0, r: 6, dmg: 1, life: 1, max: 1,
   kind: 'bolt', color: '#fff', beh: 'straight', pierce: 0, wid: '', knock: 0,
   turn: 0, tgt: null, ret: 0, hits: new Set(), rot: 0, len: 0, spin: 0,
-  range: 0, dist: 0, back: false, burst: 0, hitCd: 0, seed: 0,
+  range: 0, dist: 0, back: false, burst: 0, burstMul: 0.5, hitCd: 0, seed: 0,
 });
 export const mkEBullet = () => ({ alive: false, x: 0, y: 0, vx: 0, vy: 0, r: 6, dmg: 5, life: 4, color: '#f8f', rot: 0, spin: 0 });
 export const mkWave = () => ({ alive: false, x: 0, y: 0, r: 0, maxR: 100, speed: 200, dmg: 1, knock: 0, color: '#fff', wid: '', hits: new Set(), width: 8, delay: 0 });
@@ -85,7 +85,7 @@ export function updateBullets(g, dt) {
       g.hurt(e, b.dmg, { knock: b.knock, kx: b.vx / sp, ky: b.vy / sp, wid: b.wid });
       g.fx.cone(b.x, b.y, -b.vx, -b.vy, 3, b.color, 130, 1.4);
       if (b.burst > 0) {
-        g.aoe(b.x, b.y, b.burst, b.dmg * 0.55, { knock: 60, wid: b.wid + 'b' });
+        g.aoe(b.x, b.y, b.burst, b.dmg * b.burstMul, { knock: 60, wid: b.wid + 'b' });
         g.fx.blast(b.x, b.y, b.burst, b.color, 0.22);
       }
       if (b.hitCd <= 0) {

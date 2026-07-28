@@ -66,7 +66,7 @@ const BOLT_X = {
   id: 'bolt_x', icon: 'bolt', kind: 'weapon', max: 1, evoOf: 'bolt', countStat: true,
   name: { ja: 'プリズムストーム', en: 'Prism Storm' },
   desc: { ja: '【進化】追尾弾の嵐。貫通し、着弾で小爆発。', en: 'EVOLVED: a storm of piercing bolts that burst on impact.' },
-  stats: { dmg: 57, cd: 0.5, count: 5, pierce: 3, speed: 420 },
+  stats: { dmg: 57, cd: 0.58, count: 4, pierce: 3, speed: 420 },
   fire(g, w) {
     const n = wcount(g, w), dmg = wdmg(g, w), a = warea(g, w);
     const tgt = g.nearest(g.p.x, g.p.y, 700);
@@ -76,7 +76,7 @@ const BOLT_X = {
       g.bullet({
         x: g.p.x, y: g.p.y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
         r: 8.5 * a, dmg, life: 2.4, kind: 'bolt', color: '#b6f2ff', beh: 'home',
-        turn: 7, pierce: wv(w, 'pierce'), wid: w.id, knock: 30, burst: 38 * a,
+        turn: 7, pierce: wv(w, 'pierce'), wid: w.id, knock: 30, burst: 34 * a, burstMul: 0.4,
       });
     }
     g.snd.shoot(1.35, true);
@@ -232,18 +232,21 @@ const LANCE_X = {
   id: 'lance_x', icon: 'lance', kind: 'weapon', max: 1, evoOf: 'lance',
   name: { ja: 'レールガン', en: 'Railgun' },
   desc: { ja: '【進化】画面を貫く即着弾ビーム。すべてを貫通。', en: 'EVOLVED: an instant beam that pierces the entire screen.' },
-  stats: { dmg: 176, cd: 1.25, count: 1, speed: 0 },
+  stats: { dmg: 205, cd: 1.05, count: 3, speed: 0 },
   fire(g, w) {
     const A = warea(g, w);
     const base = Math.atan2(g.aim.y, g.aim.x);
-    const len = 1400, wdt = 26 * A;
+    const len = 1400, wdt = 24 * A;
     const dmg = wdmg(g, w);
-    const ex = g.p.x + Math.cos(base) * len, ey = g.p.y + Math.sin(base) * len;
-    g.lineHit(g.p.x, g.p.y, ex, ey, wdt, dmg, { knock: 150, wid: w.id });
-    g.beam({ pts: [g.p.x, g.p.y, ex, ey], life: 0.3, color: '#fff6c8', width: wdt, glow: '#ffd35c' });
+    const n = wv(w, 'count');
+    for (const ang of fanAngles(base, n, 0.62)) {
+      const ex = g.p.x + Math.cos(ang) * len, ey = g.p.y + Math.sin(ang) * len;
+      g.lineHit(g.p.x, g.p.y, ex, ey, wdt, dmg, { knock: 150, wid: w.id + ang.toFixed(2) });
+      g.beam({ pts: [g.p.x, g.p.y, ex, ey], life: 0.3, color: '#fff6c8', width: wdt, glow: '#ffd35c' });
+    }
     g.snd.laser(0.6);
-    g.shake(7);
-    g.fx.spark(g.p.x + Math.cos(base) * 26, g.p.y + Math.sin(base) * 26, 14, '#ffe9a0', 320);
+    g.shake(8);
+    g.fx.spark(g.p.x + Math.cos(base) * 26, g.p.y + Math.sin(base) * 26, 18, '#ffe9a0', 340);
   },
 };
 
@@ -253,16 +256,16 @@ const ARC = {
   name: { ja: 'アーク', en: 'Arc' },
   desc: { ja: '敵から敵へ連鎖する電撃を走らせる。', en: 'Lightning that leaps from enemy to enemy.' },
   stats: {
-    dmg: [19, 23, 28, 35, 43, 53, 63, 77],
-    chains: [2, 3, 3, 4, 4, 5, 6, 7],
-    cd: [1.8, 1.72, 1.62, 1.5, 1.4, 1.3, 1.18, 1.05],
-    range: 170,
+    dmg: [26, 32, 39, 48, 59, 72, 87, 105],
+    chains: [3, 4, 5, 6, 7, 8, 10, 12],
+    cd: [1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.1, 0.95],
+    range: 175,
   },
   evo: { id: 'arc_x', need: 'focus' },
   fire(g, w) {
     const first = g.nearest(g.p.x, g.p.y, 380);
     if (!first) return;
-    g.chain(first, wv(w, 'chains'), wv(w, 'range') * warea(g, w), wdmg(g, w), w.id, '#a6d8ff', 0);
+    g.chain(first, wv(w, 'chains'), wv(w, 'range') * warea(g, w), wdmg(g, w), w.id, '#a6d8ff', 0, 0.96);
     g.snd.laser(1.5);
   },
 };
@@ -270,11 +273,11 @@ const ARC_X = {
   id: 'arc_x', icon: 'arc', kind: 'weapon', max: 1, evoOf: 'arc',
   name: { ja: 'テンペスト', en: 'Tempest' },
   desc: { ja: '【進化】無数に枝分かれし、敵を麻痺させる嵐。', en: 'EVOLVED: a branching storm that stuns everything it touches.' },
-  stats: { dmg: 89, chains: 13, cd: 0.9, range: 210 },
+  stats: { dmg: 122, chains: 18, cd: 0.85, range: 225 },
   fire(g, w) {
     const first = g.nearest(g.p.x, g.p.y, 460);
     if (!first) return;
-    g.chain(first, wv(w, 'chains'), wv(w, 'range') * warea(g, w), wdmg(g, w), w.id, '#dcbaff', 0.45);
+    g.chain(first, wv(w, 'chains'), wv(w, 'range') * warea(g, w), wdmg(g, w), w.id, '#dcbaff', 0.45, 0.985);
     g.snd.laser(1.1);
     g.shake(2);
   },
@@ -370,10 +373,11 @@ const SENTRY = {
   name: { ja: 'センチネル', en: 'Sentinel' },
   desc: { ja: '追従するドローンが自動で敵を撃つ。', en: 'A drone escorts you and shoots on its own.' },
   stats: {
-    dmg: [14, 18, 22, 27, 32, 39, 47, 57],
-    drones: [1, 1, 1, 2, 2, 2, 3, 3],
-    fireCd: [0.8, 0.74, 0.68, 0.62, 0.57, 0.52, 0.48, 0.42],
-    cd: 0, range: 300, speed: 470,
+    dmg: [20, 25, 31, 38, 46, 56, 67, 81],
+    drones: [1, 1, 2, 2, 2, 3, 3, 4],
+    fireCd: [0.72, 0.66, 0.6, 0.55, 0.5, 0.45, 0.4, 0.34],
+    pierce: [0, 0, 1, 1, 1, 2, 2, 3],
+    cd: 0, range: 320, speed: 470,
   },
   evo: { id: 'sentry_x', need: 'overdrive' },
   init(g, w) { w.drones = []; w.phase = 0; },
@@ -399,8 +403,9 @@ const SENTRY = {
           const sp = wv(w, 'speed');
           g.bullet({
             x: d.x, y: d.y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
-            r: 5 * warea(g, w), dmg: wdmg(g, w), life: 1.2, kind: 'dot', color: '#c6ff8a',
-            beh: 'straight', pierce: 0, wid: w.id, knock: 18,
+            r: 5.5 * warea(g, w), dmg: wdmg(g, w), life: 1.3, kind: 'dot', color: '#c6ff8a',
+            beh: wv(w, 'homing') ? 'home' : 'straight', turn: 4.5,
+            pierce: wv(w, 'pierce'), wid: w.id, knock: 18,
           });
           g.snd.shoot(1.6, true);
         } else d.t = 0.12;
@@ -419,7 +424,7 @@ const SENTRY_X = {
   id: 'sentry_x', icon: 'sentry', kind: 'weapon', max: 1, evoOf: 'sentry',
   name: { ja: 'リージョン', en: 'Legion' },
   desc: { ja: '【進化】5基の追尾ドローンが弾幕を張る。', en: 'EVOLVED: five drones lay down a homing barrage.' },
-  stats: { dmg: 54, drones: 5, fireCd: 0.3, cd: 0, range: 360, speed: 430 },
+  stats: { dmg: 84, drones: 5, fireCd: 0.28, pierce: 2, homing: 1, cd: 0, range: 380, speed: 430 },
   init(g, w) { w.drones = []; w.phase = 0; },
   tick(g, w, dt) {
     SENTRY.tick.call(this, g, w, dt);

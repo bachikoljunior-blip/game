@@ -117,6 +117,21 @@ b,strong{font-weight:700}
   100%{opacity:0;transform:translateY(-16px) scale(.98)}
 }
 
+/* first-run hint */
+.hint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-b) + 130px);
+  max-width:min(88vw,390px);padding:11px 20px;border-radius:14px;text-align:center;
+  background:rgba(6,10,20,.72);border:1px solid var(--line-2);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);font-size:13px;line-height:1.5;color:var(--ink);
+  box-shadow:0 8px 30px rgba(0,0,0,.5);animation:hintIn .45s cubic-bezier(.2,.8,.3,1)}
+.hint b{color:var(--cy)}
+.hint::after{content:"";position:absolute;left:50%;bottom:-9px;width:34px;height:34px;
+  margin-left:-17px;border-radius:50%;border:2px solid rgba(99,244,255,.5);
+  animation:hintPulse 1.8s ease-out infinite}
+.hint.out{animation:hintOut .35s ease-in forwards}
+@keyframes hintIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%)}}
+@keyframes hintOut{to{opacity:0;transform:translateX(-50%) translateY(-10px)}}
+@keyframes hintPulse{0%{transform:scale(.5);opacity:.9}100%{transform:scale(2.1);opacity:0}}
+
 /* burst button */
 .hud-bottom{position:absolute;right:calc(var(--safe-r) + 16px);bottom:calc(var(--safe-b) + 22px)}
 .burst{pointer-events:auto;position:relative;width:78px;height:78px;border-radius:50%;

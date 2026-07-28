@@ -390,6 +390,43 @@ G('card text');
   ok(info.title && info.sub, 'fallback cards still render');
 }
 
+/* ------------------------------------------------------------- packaging */
+G('packaging');
+{
+  const { readFileSync, readdirSync, existsSync } = await import('node:fs');
+  const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+  const listed = [...sw.matchAll(/'(\.\/[^']*)'/g)].map((m) => m[1]).filter((p) => p !== './');
+  const root = new URL('../', import.meta.url);
+
+  for (const p of listed) ok(existsSync(new URL(p, root)), `precached file exists: ${p}`);
+
+  // Every shipped module must be precached, or the game breaks offline the
+  // moment someone adds a file and forgets this list.
+  const walk = (dir) => readdirSync(new URL(dir, root), { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? walk(`${dir}${e.name}/`) : [`${dir}${e.name}`]));
+  for (const f of walk('src/')) ok(listed.includes('./' + f), `service worker precaches ./${f}`);
+
+  const html = readFileSync(new URL('index.html', root), 'utf8');
+  ok(html.includes('viewport-fit=cover'), 'viewport opts into the safe-area insets');
+  ok(html.includes('user-scalable=no'), 'pinch zoom is disabled for a game canvas');
+  ok(html.includes('manifest.webmanifest'), 'manifest is linked');
+  ok(html.includes('apple-touch-icon'), 'iOS home-screen icon is linked');
+  const mani = JSON.parse(readFileSync(new URL('manifest.webmanifest', root), 'utf8'));
+  ok(mani.icons.length >= 3, 'manifest ships several icon sizes');
+  ok(mani.icons.some((i) => i.purpose === 'maskable'), 'manifest has a maskable icon');
+  for (const i of mani.icons) ok(existsSync(new URL(i.src, root)), `manifest icon exists: ${i.src}`);
+  ok(mani.display === 'fullscreen' || mani.display === 'standalone', 'installs without browser chrome');
+
+  // ids referenced from JS must exist in the markup
+  const ids = ['view', 'hud', 'hpFill', 'xpFill', 'clock', 'kills', 'shards', 'loadout', 'alerts',
+    'hint', 'btnBurst', 'burstCd', 'btnPause', 'logoCanvas', 'btnPlay', 'btnChars', 'btnShop',
+    'btnCodex', 'btnOptions', 'btnEndless', 'charList', 'shopList', 'codexBody', 'optionsBody',
+    'luCards', 'luTitle', 'btnReroll', 'btnBanish', 'btnSkip', 'chestList', 'btnChestOk',
+    'pauseBuild', 'btnResume', 'btnQuit', 'resStats', 'resBuild', 'resUnlocks', 'btnResHome',
+    'btnResAgain', 'titleShards', 'titleBest', 'playSub', 'shopShards', 'vignette', 'fxflash', 'boot'];
+  for (const id of ids) ok(html.includes(`id="${id}"`), `markup defines #${id}`);
+}
+
 /* ------------------------------------------------------------------ done */
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

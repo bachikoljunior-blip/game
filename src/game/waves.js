@@ -53,6 +53,7 @@ export class Director {
     this.bossSpawned = false;
     this.warned = false;
     this.loop = 0;
+    this.bossAt = RUN_LEN;
   }
 
   /** Live difficulty multipliers. */
@@ -83,19 +84,19 @@ export class Director {
     }
 
     // ---- boss
-    if (!this.bossSpawned && time >= RUN_LEN - 6 && !this.warned) {
+    if (!this.bossSpawned && time >= this.bossAt - 6 && !this.warned) {
       this.warned = true;
       g.alert(T('warnBoss'), 'bad');
       g.snd.bossWarn();
       g.shake(6);
     }
-    if (!this.bossSpawned && time >= RUN_LEN) {
+    if (!this.bossSpawned && time >= this.bossAt) {
       this.bossSpawned = true;
       g.spawnBoss();
     }
 
     // ---- endless escalation
-    if (this.bossSpawned && g.endless && time > RUN_LEN + 60 * (this.loop + 1)) {
+    if (this.bossSpawned && g.endless && time > this.bossAt + 60 * (this.loop + 1)) {
       this.loop++;
       g.alert(T('warnHorde'), 'bad');
       this.event('horde', 'phantom', 40 + this.loop * 8);

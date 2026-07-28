@@ -163,7 +163,7 @@ export function drawEnemies(g, ctx, r, glow) {
     }
     ctx.beginPath(); addPoly(ctx, e.x, e.y, s, def.sides, e.rot, def.spike);
     ctx.globalAlpha = 1;
-    if (!def._hot) def._hot = mix(def.color, '#ffffff', 0.55);
+    if (!def._hot) def._hot = mix(def.color, '#ffffff', 0.32);
     ctx.fillStyle = flash ? def._hot : (glow ? def.color : def._dark || def.color);
     ctx.fill();
     ctx.strokeStyle = flash ? '#ffffff' : def.color;
@@ -172,8 +172,28 @@ export function drawEnemies(g, ctx, r, glow) {
     if (e.elite && e.hp < e.maxHp) hpBar(ctx, e.x, e.y - s - 9, s * 1.6, e.hp / e.maxHp, '#ffcf5c');
   }
 
-  // shield arcs for wardens
+  // charge telegraphs — the player must be able to read and dodge a dash
   ctx.lineCap = 'round';
+  for (let i = 0; i < L.length; i++) {
+    const e = L[i];
+    if (e.boss || e.st !== 1 || !e.aimx) continue;
+    const k = 1 - clamp(e.stt / 0.62, 0, 1);
+    const len = 90 + k * 190;
+    ctx.globalAlpha = 0.25 + k * 0.5;
+    ctx.strokeStyle = '#ffd45c';
+    ctx.lineWidth = 1.5 + k * 2.5;
+    ctx.beginPath();
+    ctx.moveTo(e.x + e.aimx * e.r, e.y + e.aimy * e.r);
+    ctx.lineTo(e.x + e.aimx * len, e.y + e.aimy * len);
+    ctx.stroke();
+    ctx.globalAlpha = 0.5 + k * 0.5;
+    ctx.beginPath();
+    addPoly(ctx, e.x, e.y, e.r * (1.5 + k * 0.5), 4, e.t * 6, 0.5);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // shield arcs for wardens
   for (let i = 0; i < L.length; i++) {
     const e = L[i];
     if (!e.def.shield || e.boss) continue;

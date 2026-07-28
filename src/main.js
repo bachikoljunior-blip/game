@@ -35,9 +35,11 @@ const api = {
     screens.close();
     hud.show(true);
     hud.cache = {}; hud.loadoutKey = '';
+    const firstEver = save.data.runs === 0;
     game.start(charId, save.data.endlessUnlocked && screens.endless);
     sound.startMusic();
     resultShown = false;
+    if (firstEver) hud.showHint(t('hintMove'));
   },
   resume() { screens.close(); },
   quit() {
@@ -53,6 +55,7 @@ const api = {
 const screens = new Screens(game, hud, api);
 let resultShown = false;
 
+game.uiBusy = () => screens.isModal();
 game.onLevelUp = () => screens.openLevelUp();
 game.onChest = () => screens.openChest();
 game.onAlert = (text, cls) => hud.alert(text, cls);

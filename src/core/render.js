@@ -18,7 +18,7 @@ import { clamp, damp, TAU, rgba } from './util.js';
  * The dominant per-pixel cost is the bloom composite, hence the dpr cap steps.
  */
 const QUALITY = {
-  high: { dprCap: 2, bloomScale: 0.25, blur: 2.2, bloomAlpha: 0.72, wide: 0.3, starLayers: 3, maxParticles: 1500, grid: true, trails: true },
+  high: { dprCap: 2, bloomScale: 0.25, blur: 2.2, bloomAlpha: 0.72, wide: 0.2, starLayers: 3, maxParticles: 1500, grid: true, trails: true },
   mid: { dprCap: 1.5, bloomScale: 0.22, blur: 2, bloomAlpha: 0.7, wide: 0, starLayers: 2, maxParticles: 800, grid: true, trails: true },
   low: { dprCap: 1.1, bloomScale: 0.2, blur: 1.6, bloomAlpha: 0.62, wide: 0, starLayers: 1, maxParticles: 400, grid: false, trails: false },
 };
@@ -43,6 +43,12 @@ export class Renderer {
     this._frames = 0; this._acc = 0; this._slow = 0; this._fast = 0;
     this.fps = 60;
     this.autoQuality = true;
+    this.shakeScale = 1;
+    try {
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      this.shakeScale = mq.matches ? 0.25 : 1;
+      mq.addEventListener('change', (e) => { this.shakeScale = e.matches ? 0.25 : 1; });
+    } catch (e) { /* older browsers: full motion */ }
     this.resize();
   }
 
@@ -100,7 +106,7 @@ export class Renderer {
     this.cam.tx = x + vx * 0.16;
     this.cam.ty = y + vy * 0.16;
   }
-  shake(mag) { this.shakeMag = Math.min(28, this.shakeMag + mag); }
+  shake(mag) { this.shakeMag = Math.min(28, this.shakeMag + mag * this.shakeScale); }
 
   update(dt) {
     this.time += dt;
@@ -149,9 +155,9 @@ export class Renderer {
     if (this._bgKey !== key) {
       const grad = ctx.createLinearGradient(0, 0, this.w * 0.35, this.h);
       const t = this.tint;
-      grad.addColorStop(0, `rgb(${5 + t * 16},${7 + t * 3},${16 + t * 6})`);
-      grad.addColorStop(0.55, `rgb(${4 + t * 12},${6 + t * 2},${13 + t * 8})`);
-      grad.addColorStop(1, `rgb(${2 + t * 10},${3 + t * 2},${9 + t * 5})`);
+      grad.addColorStop(0, `rgb(${5 + t * 11},${7 + t * 4},${16 + t * 16})`);
+      grad.addColorStop(0.55, `rgb(${4 + t * 9},${6 + t * 3},${13 + t * 13})`);
+      grad.addColorStop(1, `rgb(${2 + t * 7},${3 + t * 2},${9 + t * 9})`);
       this._bgGrad = grad; this._bgKey = key;
     }
     ctx.fillStyle = this._bgGrad;

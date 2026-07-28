@@ -26,6 +26,7 @@ export function makeBot(game, opts = {}) {
   }
 
   function hookUpgrades(up) {
+    game.uiBusy = () => false;
     game.onLevelUp = () => {
       const choices = up.buildChoices(game, 3);
       const c = chooseCard(choices, up);

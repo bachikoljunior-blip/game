@@ -111,7 +111,7 @@ export function drawBoss(g, e, ctx, r) {
   const c1 = ['#b06bff', '#ff6bd0', '#ff5c5c'][ph];
   const c2 = ['#e0b3ff', '#ffb3e6', '#ffb3b3'][ph];
 
-  r.glow(e.x, e.y, s * 3.2, c1, 0.5);
+  r.glow(e.x, e.y, s * 3.0, c1, 0.4);
 
   // outer broken rings
   ctx.save();
@@ -122,7 +122,7 @@ export function drawBoss(g, e, ctx, r) {
     const rot = e.t * (0.5 + ring * 0.35) * dir;
     const segs = 4 + ring;
     ctx.strokeStyle = ring === 0 ? c2 : c1;
-    ctx.globalAlpha = 0.85 - ring * 0.2;
+    ctx.globalAlpha = 0.7 - ring * 0.18;
     ctx.lineWidth = 4 - ring;
     for (let i = 0; i < segs; i++) {
       const a0 = rot + (i / segs) * TAU;
@@ -141,10 +141,10 @@ export function drawBoss(g, e, ctx, r) {
     if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   }
   ctx.closePath();
-  ctx.fillStyle = flash ? '#ffffff' : '#1a0f2e';
+  ctx.fillStyle = flash ? '#3b1f52' : '#1a0f2e';
   ctx.fill();
   ctx.strokeStyle = flash ? '#ffffff' : c2;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = flash ? 5 : 3;
   ctx.stroke();
   ctx.restore();
 
@@ -152,7 +152,7 @@ export function drawBoss(g, e, ctx, r) {
   const ex = e.x + Math.cos(e.face) * s * 0.28, ey = e.y + Math.sin(e.face) * s * 0.28;
   ctx.beginPath();
   ctx.ellipse(e.x, e.y, s * 0.5, s * 0.3, e.face, 0, TAU);
-  ctx.fillStyle = flash ? '#ffffff' : '#2a1840';
+  ctx.fillStyle = '#2a1840';
   ctx.globalAlpha = 1;
   ctx.fill();
   ctx.strokeStyle = c2;
