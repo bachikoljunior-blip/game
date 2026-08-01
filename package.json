@@ -12,7 +12,8 @@
     "balance": "node tools/balance.mjs 8",
     "verify": "node tests/run.mjs && node tools/weaponsweep.mjs && node tools/playtest.mjs",
     "icons": "node tools/make-icons.mjs",
-    "check": "node --check src/main.js"
+    "check:kit": "node .kit/tools/bootstrap.mjs --target=. --check",
+    "check": "node --check src/main.js && npm run check:kit"
   },
   "devDependencies": {
     "playwright-core": "^1.49.0"
